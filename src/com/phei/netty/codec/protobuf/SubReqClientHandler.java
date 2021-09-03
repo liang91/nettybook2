@@ -16,23 +16,12 @@
 package com.phei.netty.codec.protobuf;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.SimpleChannelInboundHandler;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * @author lilinfeng
- * @version 1.0
- * @date 2014年2月14日
- */
-public class SubReqClientHandler extends ChannelInboundHandlerAdapter {
-
-    /**
-     * Creates a client-side handler.
-     */
-    public SubReqClientHandler() {
-    }
+public class SubReqClientHandler extends SimpleChannelInboundHandler<SubscribeRespProto.SubscribeResp> {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
@@ -43,26 +32,21 @@ public class SubReqClientHandler extends ChannelInboundHandlerAdapter {
     }
 
     private SubscribeReqProto.SubscribeReq subReq(int i) {
-        SubscribeReqProto.SubscribeReq.Builder builder = SubscribeReqProto.SubscribeReq .newBuilder();
+        SubscribeReqProto.SubscribeReq.Builder builder = SubscribeReqProto.SubscribeReq.newBuilder();
         builder.setSubReqID(i);
-        builder.setUserName("Lilinfeng");
+        builder.setUserName("Li Lin Feng");
         builder.setProductName("Netty Book For Protobuf");
         List<String> address = new ArrayList<>();
-        address.add("NanJing YuHuaTai");
-        address.add("BeiJing LiuLiChang");
-        address.add("ShenZhen HongShuLin");
+        address.add("Nanjing YuHuaTai");
+        address.add("Beijing LiuLiChang");
+        address.add("Shenzhen HongShuLin");
         builder.addAllAddress(address);
         return builder.build();
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        System.out.println("Receive server response : [" + msg + "]");
-    }
-
-    @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        ctx.flush();
+    public void channelRead0(ChannelHandlerContext ctx, SubscribeRespProto.SubscribeResp msg) {
+        System.out.println("收到消息:" + msg);
     }
 
     @Override

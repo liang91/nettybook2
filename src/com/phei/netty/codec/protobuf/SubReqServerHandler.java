@@ -17,21 +17,18 @@ package com.phei.netty.codec.protobuf;
 
 import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.SimpleChannelInboundHandler;
 
 @Sharable
-public class SubReqServerHandler extends ChannelInboundHandlerAdapter {
+public class SubReqServerHandler extends SimpleChannelInboundHandler<SubscribeReqProto.SubscribeReq> {
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        SubscribeReqProto.SubscribeReq req = (SubscribeReqProto.SubscribeReq) msg;
-        if ("Lilinfeng".equalsIgnoreCase(req.getUserName())) {
-            System.out.println("Service accept client subscribe req : [" + req.toString() + "]");
-            ctx.writeAndFlush(resp(req.getSubReqID()));
-        }
+    public void channelRead0(ChannelHandlerContext ctx, SubscribeReqProto.SubscribeReq msg) {
+        System.out.println("收到订阅请求:" + msg);
+        ctx.writeAndFlush(buildResp(msg.getSubReqID()));
     }
 
-    private SubscribeRespProto.SubscribeResp resp(int subReqID) {
+    private SubscribeRespProto.SubscribeResp buildResp(int subReqID) {
         SubscribeRespProto.SubscribeResp.Builder builder = SubscribeRespProto.SubscribeResp.newBuilder();
         builder.setSubReqID(subReqID);
         builder.setRespCode(0);
@@ -42,6 +39,6 @@ public class SubReqServerHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         cause.printStackTrace();
-        ctx.close();// 发生异常，关闭链路
+        ctx.close();
     }
 }
