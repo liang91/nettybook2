@@ -1,12 +1,12 @@
 /*
  * Copyright 2013-2018 Lilinfeng.
- *  
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *  
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- *  
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,91 +15,81 @@
  */
 package com.phei.netty.protocol.netty.server;
 
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerAdapter;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPipeline;
-
-import java.net.InetSocketAddress;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import com.phei.netty.protocol.netty.MessageType;
 import com.phei.netty.protocol.netty.struct.Header;
 import com.phei.netty.protocol.netty.struct.NettyMessage;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+
+import java.net.InetSocketAddress;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * @author Lilinfeng
- * @date 2014年3月15日
- * @version 1.0
+ * 登录请求处理
  */
-public class LoginAuthRespHandler extends ChannelHandlerAdapter {
+public class LoginAuthRespHandler extends ChannelInboundHandlerAdapter {
 
-	private final static Log LOG = LogFactory.getLog(LoginAuthRespHandler.class);
+    private static final Map<String, AtomicInteger> logins = new ConcurrentHashMap<>();
+    private static final String[] whiteList = {"127.0.0.1", "192.168.1.104"};
+    private String ip;
 
-    private Map<String, Boolean> nodeCheck = new ConcurrentHashMap<String, Boolean>();
-    private String[] whitekList = { "127.0.0.1", "192.168.1.104" };
-
-    /**
-     * Calls {@link ChannelHandlerContext#fireChannelRead(Object)} to forward to
-     * the next {@link ChannelHandler} in the {@link ChannelPipeline}.
-     * 
-     * Sub-classes may override this method to change behavior.
-     */
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg)
-	    throws Exception {
-	NettyMessage message = (NettyMessage) msg;
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+        NettyMessage message = (NettyMessage) msg;
+        // 处理登录消息
+        if (message.getHeader().getType() == MessageType.LOGIN_REQ.value()) {
+            NettyMessage resp;
+            InetSocketAddress address = (InetSocketAddress) ctx.channel().remoteAddress();
+            ip = address.getAddress().getHostAddress();
+            System.out.println("IP:" + ip);
+            if (logins.containsKey(ip)) {
+                logins.get(ip).incrementAndGet();
+                resp = buildResponse((byte) -1);
+                System.out.println(address + "重复登录，拒绝");
+            } else {
+                if (Arrays.asList(whiteList).contains(ip)) {
+                    resp = buildResponse((byte) 0);
+                    logins.put(ip, new AtomicInteger(1));
+                    System.out.println(ip + "首次登录，接受");
+                } else {
+                    resp = buildResponse((byte) -1);
+                    System.out.println(ip + "不在白名单内，拒绝");
+                }
+            }
+            ctx.writeAndFlush(resp);
+        } else {
+            ctx.fireChannelRead(msg);
+        }
+    }
 
-	// 如果是握手请求消息，处理，其它消息透传
-	if (message.getHeader() != null
-		&& message.getHeader().getType() == MessageType.LOGIN_REQ
-			.value()) {
-	    String nodeIndex = ctx.channel().remoteAddress().toString();
-	    NettyMessage loginResp = null;
-	    // 重复登陆，拒绝
-	    if (nodeCheck.containsKey(nodeIndex)) {
-		loginResp = buildResponse((byte) -1);
-	    } else {
-		InetSocketAddress address = (InetSocketAddress) ctx.channel()
-			.remoteAddress();
-		String ip = address.getAddress().getHostAddress();
-		boolean isOK = false;
-		for (String WIP : whitekList) {
-		    if (WIP.equals(ip)) {
-			isOK = true;
-			break;
-		    }
-		}
-		loginResp = isOK ? buildResponse((byte) 0)
-			: buildResponse((byte) -1);
-		if (isOK)
-		    nodeCheck.put(nodeIndex, true);
-	    }
-	    LOG.info("The login response is : " + loginResp
-		    + " body [" + loginResp.getBody() + "]");
-	    ctx.writeAndFlush(loginResp);
-	} else {
-	    ctx.fireChannelRead(msg);
-	}
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        System.out.print("连接关闭");
+        if (logins.get(ip).decrementAndGet() == 0) {
+            System.out.println("-清除登录状态");
+            logins.remove(ip);
+        }
+        super.channelInactive(ctx);
     }
 
     private NettyMessage buildResponse(byte result) {
-	NettyMessage message = new NettyMessage();
-	Header header = new Header();
-	header.setType(MessageType.LOGIN_RESP.value());
-	message.setHeader(header);
-	message.setBody(result);
-	return message;
+        NettyMessage message = new NettyMessage();
+        Header header = new Header();
+        header.setType(MessageType.LOGIN_RESP.value());
+        message.setHeader(header);
+        message.setBody(result);
+        return message;
     }
 
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
-	    throws Exception {
-	cause.printStackTrace();
-	nodeCheck.remove(ctx.channel().remoteAddress().toString());// 删除缓存
-	ctx.close();
-	ctx.fireExceptionCaught(cause);
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        System.out.println("发生异常，删除登录状态，关闭连接");
+        cause.printStackTrace();
+        logins.remove(ip);
+        ctx.close();
+        ctx.fireExceptionCaught(cause);
     }
 }

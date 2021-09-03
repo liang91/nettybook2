@@ -18,15 +18,7 @@ package com.phei.netty.protocol.netty.codec;
 import io.netty.buffer.ByteBuf;
 import org.jboss.marshalling.ByteOutput;
 
-import java.io.IOException;
-
-/**
- * {@link ByteOutput} implementation which writes the data to a {@link ByteBuf}
- *
- *
- */
 class ChannelBufferByteOutput implements ByteOutput {
-
     private final ByteBuf buffer;
 
     /**
@@ -37,34 +29,28 @@ class ChannelBufferByteOutput implements ByteOutput {
     }
 
     @Override
-    public void close() throws IOException {
-        // Nothing to do
+    public void close() {
     }
 
     @Override
-    public void flush() throws IOException {
-        // nothing to do
+    public void flush() {
     }
 
     @Override
-    public void write(int b) throws IOException {
+    public void write(int b) {
         buffer.writeByte(b);
     }
 
     @Override
-    public void write(byte[] bytes) throws IOException {
+    public void write(byte[] bytes) {
         buffer.writeBytes(bytes);
     }
 
     @Override
-    public void write(byte[] bytes, int srcIndex, int length) throws IOException {
+    public void write(byte[] bytes, int srcIndex, int length) {
         buffer.writeBytes(bytes, srcIndex, length);
     }
 
-    /**
-     * Return the {@link ByteBuf} which contains the written content
-     *
-     */
     ByteBuf getBuffer() {
         return buffer;
     }
