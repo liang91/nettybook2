@@ -28,11 +28,6 @@ import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.websocketx.*;
 import io.netty.util.CharsetUtil;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static io.netty.handler.codec.http.HttpHeaders.isKeepAlive;
-import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
 
@@ -41,9 +36,11 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Object msg) {
-        if (msg instanceof FullHttpRequest) {       // 传统的HTTP接入
+        if (msg instanceof FullHttpRequest) {
+            // 传统的HTTP接入
             handleHttpRequest(ctx, (FullHttpRequest) msg);
-        } else if (msg instanceof WebSocketFrame) { // WebSocket接入
+        } else if (msg instanceof WebSocketFrame) {
+            // WebSocket接入
             handleWebSocketFrame(ctx, (WebSocketFrame) msg);
         }
     }

@@ -1,18 +1,3 @@
-/*
- * Copyright 2013-2018 Lilinfeng.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.phei.netty.protocol.http.fileServer;
 
 import io.netty.buffer.ByteBuf;
@@ -28,11 +13,10 @@ import java.io.FileNotFoundException;
 import java.io.RandomAccessFile;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpHeaders.isKeepAlive;
-import static io.netty.handler.codec.http.HttpHeaders.setContentLength;
 import static io.netty.handler.codec.http.HttpMethod.GET;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.netty.handler.codec.http.HttpVersion.HTTP_1_1;
@@ -46,15 +30,15 @@ public class HttpFileServerHandler extends SimpleChannelInboundHandler<FullHttpR
 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
-        if (!request.getDecoderResult().isSuccess()) {
+        if (!request.decoderResult().isSuccess()) {
             sendError(ctx, BAD_REQUEST);
             return;
         }
-        if (request.getMethod() != GET) {
+        if (request.method() != GET) {
             sendError(ctx, METHOD_NOT_ALLOWED);
             return;
         }
-        final String uri = request.getUri();
+        final String uri = request.uri();
         final String path = sanitizeUri(uri);
         if (path == null) {
             sendError(ctx, FORBIDDEN);
@@ -86,19 +70,17 @@ public class HttpFileServerHandler extends SimpleChannelInboundHandler<FullHttpR
         }
         long fileLength = randomAccessFile.length();
         HttpResponse response = new DefaultHttpResponse(HTTP_1_1, OK);
-        setContentLength(response, fileLength);
+        HttpUtil.setContentLength(response, fileLength);
         setContentTypeHeader(response, file);
-        if (isKeepAlive(request)) {
+        if (HttpUtil.isKeepAlive(request)) {
             response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
         }
         ctx.write(response);
         ChannelFuture sendFileFuture;
-        sendFileFuture = ctx.write(new ChunkedFile(randomAccessFile, 0,
-                fileLength, 8192), ctx.newProgressivePromise());
+        sendFileFuture = ctx.write(new ChunkedFile(randomAccessFile, 0, fileLength, 8192), ctx.newProgressivePromise());
         sendFileFuture.addListener(new ChannelProgressiveFutureListener() {
             @Override
-            public void operationProgressed(ChannelProgressiveFuture future,
-                                            long progress, long total) {
+            public void operationProgressed(ChannelProgressiveFuture future, long progress, long total) {
                 if (total < 0) {
                     System.err.println("Transfer progress: " + progress);
                 } else {
@@ -112,7 +94,7 @@ public class HttpFileServerHandler extends SimpleChannelInboundHandler<FullHttpR
             }
         });
         ChannelFuture lastContentFuture = ctx.writeAndFlush(LastHttpContent.EMPTY_LAST_CONTENT);
-        if (!isKeepAlive(request)) {
+        if (!HttpUtil.isKeepAlive(request)) {
             lastContentFuture.addListener(ChannelFutureListener.CLOSE);
         }
     }
@@ -152,8 +134,7 @@ public class HttpFileServerHandler extends SimpleChannelInboundHandler<FullHttpR
         return System.getProperty("user.dir") + File.separator + uri;
     }
 
-    private static final Pattern ALLOWED_FILE_NAME = Pattern
-            .compile("[A-Za-z0-9][-_A-Za-z0-9\\.]*");
+    private static final Pattern ALLOWED_FILE_NAME = Pattern.compile("[A-Za-z0-9][-_A-Za-z0-9\\.]*");
 
     private static void sendListing(ChannelHandlerContext ctx, File dir) {
         FullHttpResponse response = new DefaultFullHttpResponse(HTTP_1_1, OK);
@@ -170,7 +151,7 @@ public class HttpFileServerHandler extends SimpleChannelInboundHandler<FullHttpR
         buf.append("</h3>\r\n");
         buf.append("<ul>");
         buf.append("<li>链接：<a href=\"../\">..</a></li>\r\n");
-        for (File f : dir.listFiles()) {
+        for (File f : Objects.requireNonNull(dir.listFiles())) {
             if (f.isHidden() || !f.canRead()) {
                 continue;
             }

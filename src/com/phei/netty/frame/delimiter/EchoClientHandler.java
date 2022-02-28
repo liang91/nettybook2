@@ -26,9 +26,6 @@ public class EchoClientHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {
-        // ByteBuf buf = UnpooledByteBufAllocator.DEFAULT.buffer(ECHO_REQ
-        // .getBytes().length);
-        // buf.writeBytes(ECHO_REQ.getBytes());
         for (int i = 0; i < 10; i++) {
             ctx.writeAndFlush(Unpooled.copiedBuffer(ECHO_REQ.getBytes()));
         }

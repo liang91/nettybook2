@@ -17,7 +17,6 @@ package com.phei.netty.codec.protobuf;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-
 import java.util.ArrayList;
 import java.util.List;
 
